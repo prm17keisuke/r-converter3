@@ -73,7 +73,7 @@ public class RConverter3 {
             Logger.getLogger(RConverter3.class.getName()).log(Level.SEVERE, null, ex);
         }
         // 作成した元情報オブジェクトを用い、csvを作成する
-        for (Staff staff : staffs) {
+        staffs.stream().forEach((Staff staff) -> {
             StringJoiner joiner = new StringJoiner(",");
             joiner.add(staff.getStaffName());
             joiner.add(convertMinToHM(staff.getTotalManMonth()));
@@ -83,7 +83,7 @@ public class RConverter3 {
             joiner.add(convertMinToHM(staff.getTotalLateNightWork()));
             joiner.add(convertMinToHM(staff.getTotalHolidayWork()));
             joiner.add(convertMinToHM(staff.getTotalYearRest()));
-        }
+        });
     }
 
     /**
