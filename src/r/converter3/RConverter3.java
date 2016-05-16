@@ -6,7 +6,13 @@
 package r.converter3;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,11 +21,11 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 
 /**
  *
@@ -30,29 +36,45 @@ public class RConverter3 {
     /**
      * 日付フォーマット用オブジェクト
      */
-    private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd");
+    private static final DateFormat DATE_FORMAT
+        = new SimpleDateFormat("yyyy/MM/dd");
+    
+    private static String rFileName = "";
 
     /**
      * R社タイムシート変換ツール実行メイン処理
      *
      * @param args
-     * @throws ParseException
      */
-    public static void main(String[] args) throws ParseException {
-        
-        // フィアル取得
-        try (Stream<Path> stream = Files.list(Paths.get("./"))) {
-            stream.forEach(str -> System.out.println(str));
-        } catch (IOException ex) {
-            Logger.getLogger(RConverter3.class.getName()).log(Level.SEVERE, null, ex);
-        }
+    public static void main(String[] args) {
 
-//		Path path = Paths.get("./TCHhamada20160502095503438555.txt");
-        Path path = Paths.get("./TCHhamada20160119134525438555.txt");
-        // R社データを読み込みスタッフ毎のタイムシート元情報オブジェクトを作成する
-        List<Staff> staffs = new ArrayList<>();        
-        try (BufferedReader reader = Files.newBufferedReader(
-                path, Charset.forName("Shift-Jis"))) {
+        try {
+            // R社データを読み込みスタッフ毎のタイムシート元情報オブジェクトを作成する
+            System.out.print(System.getProperty("user.dir"));
+            
+            // スタッフデータ格納リスト
+            List<Staff> staffs = readRdata();
+            
+            // 作成したスタッフデータ格納リストから、csvを作成する
+            createCSV(staffs);
+        } catch (IOException | ParseException ex) {
+            Logger.getLogger(
+                RConverter3.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    /**
+     * R社のタイムシートを読み込み、スタッフオブジェクトのリストを作成する
+     * @return
+     * @throws ParseException 
+     */
+    private static List<Staff> readRdata() throws ParseException,IOException {
+        List<Staff> staffs = new ArrayList<>();
+        // ファイルパス取得
+        Path path = getPaht();
+        rFileName = path.toString();
+        try (BufferedReader reader =
+            Files.newBufferedReader(path, Charset.forName("Shift-Jis"))) {
             String line = reader.readLine();
             Staff staff = null;
             while (line != null) {
@@ -69,21 +91,47 @@ public class RConverter3 {
                 }
                 line = reader.readLine();
             }
-        } catch (IOException ex) {
-            Logger.getLogger(RConverter3.class.getName()).log(Level.SEVERE, null, ex);
         }
-        // 作成した元情報オブジェクトを用い、csvを作成する
-        staffs.stream().forEach((Staff staff) -> {
-            StringJoiner joiner = new StringJoiner(",");
-            joiner.add(staff.getStaffName());
-            joiner.add(convertMinToHM(staff.getTotalManMonth()));
-            joiner.add(convertMinToHM(staff.getTotalInContract()));
-            joiner.add(convertMinToHM(staff.getTotalOutContractIn()));
-            joiner.add(convertMinToHM(staff.getTotalOutContractOut()));
-            joiner.add(convertMinToHM(staff.getTotalLateNightWork()));
-            joiner.add(convertMinToHM(staff.getTotalHolidayWork()));
-            joiner.add(convertMinToHM(staff.getTotalYearRest()));
-        });
+        return staffs;
+    }
+
+    /**
+     * TCHhamadaで始まるファイルパスを取得する
+     * 複数存在する場合は、ファイル名を降順でソートし、最初のファイルを取得する
+     * @return ファイルパス
+     */
+    private static Path getPaht() throws IOException {
+        // ファイルのパスを取得する
+        return Files.list(Paths.get("./")).sorted(Comparator.reverseOrder())
+            .filter(path -> path.toString()
+                .startsWith("./TCHhamada")).findFirst().get();
+    }
+
+    /**
+     * 作成したスタッフデータ格納リストから、csvを作成する
+     * @param staffs 
+     */
+    private static void createCSV(List<Staff> staffs)
+        throws UnsupportedEncodingException, FileNotFoundException {
+        // 作成したスタッフデータ格納リストから、csvを作成する
+        String fileName = rFileName.replace("txt", "csv");
+        File file = new File("." + fileName);
+        try (PrintWriter writer = new PrintWriter(
+                new OutputStreamWriter(
+                    new FileOutputStream(fileName), "Shift-Jis"))) {
+            staffs.stream().forEach((Staff staff) -> {
+                StringJoiner joiner = new StringJoiner(",");
+                joiner.add(staff.getStaffName());
+                joiner.add(convertMinToHM(staff.getTotalManMonth()));
+                joiner.add(convertMinToHM(staff.getTotalInContract()));
+                joiner.add(convertMinToHM(staff.getTotalOutContractIn()));
+                joiner.add(convertMinToHM(staff.getTotalOutContractOut()));
+                joiner.add(convertMinToHM(staff.getTotalLateNightWork()));
+                joiner.add(convertMinToHM(staff.getTotalHolidayWork()));
+                joiner.add(convertMinToHM(staff.getTotalYearRest()));
+                writer.write(joiner.toString() + "\r\n");
+            });
+        }
     }
 
     /**
@@ -96,8 +144,7 @@ public class RConverter3 {
         int h = minute / 60;
         int m = minute % 60;
         String mm = m < 10 ? "0" + m : Integer.toString(m);
-        String hm = h + ":" + mm;
-        return hm;
+        return h + ":" + mm;
     }
 
     /**
@@ -178,7 +225,7 @@ public class RConverter3 {
             return 0;
         }
         int time = Integer.parseInt(hmArray[0]) * 60
-                + Integer.parseInt(hmArray[1]);
+            + Integer.parseInt(hmArray[1]);
         return time;
     }
 
@@ -200,5 +247,5 @@ public class RConverter3 {
         };
         return weeks;
     }
-    
+
 }
