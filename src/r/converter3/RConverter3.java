@@ -37,8 +37,8 @@ public class RConverter3 {
      * 日付フォーマット用オブジェクト
      */
     private static final DateFormat DATE_FORMAT
-        = new SimpleDateFormat("yyyy/MM/dd");
-    
+            = new SimpleDateFormat("yyyy/MM/dd");
+
     private static String rFileName = "";
 
     /**
@@ -50,31 +50,43 @@ public class RConverter3 {
 
         try {
             // R社データを読み込みスタッフ毎のタイムシート元情報オブジェクトを作成する
-            System.out.print(System.getProperty("user.dir"));
-            
+            // ファイルパス取得
+            Path path = getPaht();
+            rFileName = path.getFileName().toString();
+            System.out.println(rFileName + "からデータを取得します。");
+
             // スタッフデータ格納リスト
-            List<Staff> staffs = readRdata();
-            
+            List<Staff> staffs = readRdata(path);
+            if (staffs == null || staffs.isEmpty()) {
+                System.out.println("データ取得に失敗しました");
+                System.out.println(
+                        rFileName + "が正しいデータか確認してください");
+                return;
+            }
+
             // 作成したスタッフデータ格納リストから、csvを作成する
-            createCSV(staffs);
+            String fileName = rFileName.replace("txt", "csv");
+            createCSV(staffs, fileName);
+            System.out.println(fileName + "の作成が完了しました♪");
         } catch (IOException | ParseException ex) {
             Logger.getLogger(
-                RConverter3.class.getName()).log(Level.SEVERE, null, ex);
+                    RConverter3.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
     /**
      * R社のタイムシートを読み込み、スタッフオブジェクトのリストを作成する
+     *
+     * @param path
      * @return
-     * @throws ParseException 
+     * @throws ParseException
+     * @throws IOException
      */
-    private static List<Staff> readRdata() throws ParseException,IOException {
+    private static List<Staff> readRdata(Path path)
+            throws ParseException, IOException {
         List<Staff> staffs = new ArrayList<>();
-        // ファイルパス取得
-        Path path = getPaht();
-        rFileName = path.toString();
-        try (BufferedReader reader =
-            Files.newBufferedReader(path, Charset.forName("Shift-Jis"))) {
+        try (BufferedReader reader
+                = Files.newBufferedReader(path, Charset.forName("Shift-Jis"))) {
             String line = reader.readLine();
             Staff staff = null;
             while (line != null) {
@@ -87,6 +99,9 @@ public class RConverter3 {
                     staff = makeStaffObj(datas);
                 } else if ("D".equals(datas[0])) {
                     // データの処理
+                    if (staff == null) {
+                        return null;
+                    }
                     staff.addDaily(makeDailyObj(datas));
                 }
                 line = reader.readLine();
@@ -96,30 +111,33 @@ public class RConverter3 {
     }
 
     /**
-     * TCHhamadaで始まるファイルパスを取得する
-     * 複数存在する場合は、ファイル名を降順でソートし、最初のファイルを取得する
+     * TCHhamadaで始まるファイルパスを取得する 複数存在する場合は、ファイル名を降順でソートし、最初のファイルを取得する
+     *
      * @return ファイルパス
      */
     private static Path getPaht() throws IOException {
         // ファイルのパスを取得する
         return Files.list(Paths.get("./" + File.separator))
-            .sorted(Comparator.reverseOrder()).filter(path -> path.toString()
+                .sorted(Comparator.reverseOrder()).filter(path -> path.toString()
                 .startsWith("." + File.separator + "TCHhamada")).findFirst()
                 .get();
     }
 
     /**
      * 作成したスタッフデータ格納リストから、csvを作成する
-     * @param staffs 
+     *
+     * @param staffs
+     * @param fileName
+     * @throws UnsupportedEncodingException
+     * @throws FileNotFoundException
      */
-    private static void createCSV(List<Staff> staffs)
-        throws UnsupportedEncodingException, FileNotFoundException {
+    private static void createCSV(List<Staff> staffs, String fileName)
+            throws UnsupportedEncodingException, FileNotFoundException {
         // 作成したスタッフデータ格納リストから、csvを作成する
-        String fileName = rFileName.replace("txt", "csv");
         File file = new File("." + fileName);
         try (PrintWriter writer = new PrintWriter(
                 new OutputStreamWriter(
-                    new FileOutputStream(fileName), "Shift-Jis"))) {
+                        new FileOutputStream(fileName), "Shift-Jis"))) {
             staffs.stream().forEach((Staff staff) -> {
                 StringJoiner joiner = new StringJoiner(",");
                 joiner.add(staff.getStaffName());
@@ -226,7 +244,7 @@ public class RConverter3 {
             return 0;
         }
         int time = Integer.parseInt(hmArray[0]) * 60
-            + Integer.parseInt(hmArray[1]);
+                + Integer.parseInt(hmArray[1]);
         return time;
     }
 
