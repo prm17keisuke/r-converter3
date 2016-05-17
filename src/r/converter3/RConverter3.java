@@ -102,9 +102,10 @@ public class RConverter3 {
      */
     private static Path getPaht() throws IOException {
         // ファイルのパスを取得する
-        return Files.list(Paths.get("./")).sorted(Comparator.reverseOrder())
-            .filter(path -> path.toString()
-                .startsWith("./TCHhamada")).findFirst().get();
+        return Files.list(Paths.get("./" + File.separator))
+            .sorted(Comparator.reverseOrder()).filter(path -> path.toString()
+                .startsWith("." + File.separator + "TCHhamada")).findFirst()
+                .get();
     }
 
     /**
