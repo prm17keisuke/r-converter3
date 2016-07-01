@@ -398,7 +398,8 @@ public class Staff {
         // 法定内契約外
         this.totalOutContractIn += daily.getOutContractIn();
         // 法定外契約外
-        this.totalOutContractOut += daily.getOutContractOut();
+        this.totalOutContractOut += daily.getOutContractOut()
+                - daily.getLateNightWork();
         // 深夜残業
         this.totalLateNightWork += daily.getLateNightWork();
         // 休日労働
