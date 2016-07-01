@@ -106,6 +106,7 @@ public class RConverter3 {
                 }
                 line = reader.readLine();
             }
+            staffs.add(staff);
         }
         return staffs;
     }
